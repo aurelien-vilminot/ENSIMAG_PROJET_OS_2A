@@ -3,11 +3,21 @@
 #include "console.h"
 #include "cpu.h"
 
-//TODO : mettre des define + opti code
-uint16_t PORT_COMMANDE_CURSEUR = 0x3D4;
-uint16_t PORT_DONNEES_CURSEUR = 0x3D5;
+/*
+ * Définition des constantes
+ */
+#define NB_LIG 25
+#define NB_COL 80
+#define COMMANDE_PARTIE_BASSE_CURSEUR 0x0F
+#define COMMANDE_PARTIE_HAUTE_CURSEUR 0x0E
+#define PORT_COMMANDE_CURSEUR 0x3D4
+#define PORT_DONNEES_CURSEUR 0x3D5
+#define ADR_MEM_VIDEO 0xB8000
 
-uint32_t LIG_CURSEUR = 0;
+/*
+ * Définition des variables globales
+ */
+uint32_t LIG_CURSEUR = 0
 uint32_t COL_CURSEUR = 0;
 uint8_t COULEUR_TEXTE = 0x0F;
 
@@ -18,7 +28,7 @@ void console_putbytes(const char *s, int len) {
 }
 
 uint16_t *ptr_mem(uint32_t lig, uint32_t col) {
-    return (uint16_t *) (0xB8000 + 2*(lig*80 + col));
+    return (uint16_t *) (ADR_MEM_VIDEO + 2*(lig*NB_COL + col));
 }
 
 void ecrit_car(uint32_t lig, uint32_t col, char c, uint8_t color) {
@@ -28,20 +38,20 @@ void ecrit_car(uint32_t lig, uint32_t col, char c, uint8_t color) {
 }
 
 void efface_ecran(void) {
-    for (uint32_t lig = 0 ; lig < 25 ; ++lig) {
-        for (uint32_t col = 0 ; col < 80 ; ++col) {
+    for (uint32_t lig = 0 ; lig < NB_LIG ; ++lig) {
+        for (uint32_t col = 0 ; col < NB_COL ; ++col) {
             ecrit_car(lig, col, ' ', 0x0F);
         }
     }
 }
 
 void place_curseur(uint32_t lig, uint32_t col) {
-    uint16_t position_curseur = col + lig * 80;
+    uint16_t position_curseur = col + lig * NB_COL;
     LIG_CURSEUR = lig;
     COL_CURSEUR = col;
-    outb(0x0F, PORT_COMMANDE_CURSEUR);
+    outb(COMMANDE_PARTIE_BASSE_CURSEUR, PORT_COMMANDE_CURSEUR);
     outb((uint8_t) position_curseur & 0xFF, PORT_DONNEES_CURSEUR);
-    outb(0x0E, PORT_COMMANDE_CURSEUR);
+    outb(COMMANDE_PARTIE_HAUTE_CURSEUR, PORT_COMMANDE_CURSEUR);
     outb((uint8_t) position_curseur >> 8, PORT_DONNEES_CURSEUR);
 }
 
@@ -79,8 +89,8 @@ void traite_car(char c) {
 }
 
 void defilement(void) {
-    memmove(ptr_mem(0,0), ptr_mem(1,0), 2*((25 - 1) * 80));
-    for (uint32_t col = 0 ; col < 80 ; ++col) {
-        ecrit_car(24, col, ' ', 0x0F);
+    memmove(ptr_mem(0,0), ptr_mem(1,0), 2*((NB_LIG - 1) * NB_COL));
+    for (uint32_t col = 0 ; col < NB_COL ; ++col) {
+        ecrit_car(NB_LIG - 1, col, ' ', 0x0F);
     }
 }
