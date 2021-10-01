@@ -1,0 +1,8 @@
+//
+// Created by vilminoa on 01/10/2021.
+//
+
+#ifndef SEPC_OS_PROJECT_TIME_MANAGE_H
+#define SEPC_OS_PROJECT_TIME_MANAGE_H
+
+#endif //SEPC_OS_PROJECT_TIME_MANAGE_H
