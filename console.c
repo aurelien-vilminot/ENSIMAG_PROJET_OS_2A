@@ -1,5 +1,4 @@
 #include <string.h>
-
 #include "console.h"
 #include "cpu.h"
 
@@ -17,7 +16,7 @@
 /*
  * Définition des variables globales
  */
-uint32_t LIG_CURSEUR = 0
+uint32_t LIG_CURSEUR = 0;
 uint32_t COL_CURSEUR = 0;
 uint8_t COULEUR_TEXTE = 0x0F;
 
@@ -80,6 +79,8 @@ void traite_car(char c) {
             COL_CURSEUR = 0;
             place_curseur(LIG_CURSEUR, COL_CURSEUR);
             break;
+        default:
+            break;
     }
 
     if (31 < c && c < 127) {
@@ -93,4 +94,14 @@ void defilement(void) {
     for (uint32_t col = 0 ; col < NB_COL ; ++col) {
         ecrit_car(NB_LIG - 1, col, ' ', 0x0F);
     }
+}
+
+void console_top_right(const char *s) {
+    size_t longueur_chaine = strlen(s);
+    uint32_t sauvegarde_lig_curseur = LIG_CURSEUR;
+    uint32_t sauvegarde_col_curseur = COL_CURSEUR;
+    LIG_CURSEUR = 0;
+    COL_CURSEUR = NB_COL - longueur_chaine;
+    console_putbytes(s, (int) longueur_chaine);
+    place_curseur(sauvegarde_lig_curseur, sauvegarde_col_curseur);
 }

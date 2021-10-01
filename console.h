@@ -9,6 +9,8 @@
  */
 extern void console_putbytes(const char *s, int len);
 
+void console_top_right(const char *s);
+
 extern void traite_car(char c);
 
 #endif
