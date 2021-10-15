@@ -20,6 +20,21 @@ uint32_t LIG_CURSEUR = 0;
 uint32_t COL_CURSEUR = 0;
 uint8_t COULEUR_TEXTE = 0x0F;
 
+void modif_pos_curseur(uint32_t lig, uint32_t col) {
+    if (col > NB_COL) {
+        col = col % NB_COL;
+        lig++;
+    }
+
+    if (lig >= NB_LIG) {
+        lig = NB_LIG - 1;
+        defilement();
+    }
+
+    LIG_CURSEUR = lig;
+    COL_CURSEUR = col;
+}
+
 void console_putbytes(const char *s, int len) {
     for (uint32_t caractere = 0 ; caractere < len; ++caractere) {
         traite_car(s[caractere]);
@@ -46,8 +61,7 @@ void efface_ecran(void) {
 
 void place_curseur(uint32_t lig, uint32_t col) {
     uint16_t position_curseur = col + lig * NB_COL;
-    LIG_CURSEUR = lig;
-    COL_CURSEUR = col;
+    modif_pos_curseur(lig, col);
     outb(COMMANDE_PARTIE_BASSE_CURSEUR, PORT_COMMANDE_CURSEUR);
     outb((uint8_t) position_curseur & 0xFF, PORT_DONNEES_CURSEUR);
     outb(COMMANDE_PARTIE_HAUTE_CURSEUR, PORT_COMMANDE_CURSEUR);
@@ -58,26 +72,21 @@ void traite_car(char c) {
     switch (c) {
         case 8:
             if (COL_CURSEUR > 0) {
-                place_curseur(LIG_CURSEUR, --COL_CURSEUR);
+                place_curseur(LIG_CURSEUR, COL_CURSEUR - 1);
             }
             break;
         case 9:
-            COL_CURSEUR = ((COL_CURSEUR + 8)/8)*8;
-            place_curseur(LIG_CURSEUR, COL_CURSEUR);
+            place_curseur(LIG_CURSEUR, ((COL_CURSEUR + 8)/8)*8);
             break;
         case 10:
-            COL_CURSEUR = 0;
-            place_curseur(++LIG_CURSEUR, COL_CURSEUR);
+            place_curseur(LIG_CURSEUR + 1, 0);
             break;
         case 12:
             efface_ecran();
-            LIG_CURSEUR = 0;
-            COL_CURSEUR = 0;
-            place_curseur(LIG_CURSEUR, COL_CURSEUR);
+            place_curseur(0, 0);
             break;
         case 13:
-            COL_CURSEUR = 0;
-            place_curseur(LIG_CURSEUR, COL_CURSEUR);
+            place_curseur(LIG_CURSEUR, 0);
             break;
         default:
             break;
@@ -85,7 +94,7 @@ void traite_car(char c) {
 
     if (31 < c && c < 127) {
         ecrit_car(LIG_CURSEUR, COL_CURSEUR, c, COULEUR_TEXTE);
-        place_curseur(LIG_CURSEUR, ++COL_CURSEUR);
+        place_curseur(LIG_CURSEUR, COL_CURSEUR + 1);
     }
 }
 

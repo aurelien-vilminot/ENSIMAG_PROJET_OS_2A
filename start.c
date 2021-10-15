@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include "console.h"
 #include "time_manage.h"
+#include "processus.h"
 
 
 // on peut s'entrainer a utiliser GDB avec ce code de base
@@ -34,7 +35,13 @@ void kernel_start(void)
     masque_IRQ(0, (bool)0);
 
     // Démasquer des interruptions externes
-    sti();
+    //sti();
+
+    // Initialisation des structures de processus
+    init_processus();
+
+    // demarrage du processus par defaut
+    idle();
     // on ne doit jamais sortir de kernel_start
     while (1) {
         // cette fonction arrete le processeur
