@@ -1,16 +1,18 @@
 #include "processus.h"
 #include "stdio.h"
-#include "cpu.h"
+#include "tinyalloc.h"
 #include "string.h"
+#include "cpu.h"
 
 #define TAILLE_NOM 20
 #define NB_REGISTRES 5
 #define TAILLE_PILE 512
-#define TAILLE_TABLE 2
+#define TAILLE_TABLE 8
 
 enum etat_processus {
     ELU,
-    ACTIVABLE
+    ACTIVABLE,
+    ENDORMI
 };
 
 struct processus {
@@ -19,59 +21,128 @@ struct processus {
     enum etat_processus etat;
     int32_t zone_registre[NB_REGISTRES];
     int32_t pile_exec[TAILLE_PILE];
+    int32_t heure_reveil;
+    struct processus * suiv;
 };
 
-struct processus table_processus[TAILLE_TABLE];
-int32_t indice_table_processus_actif;
+struct processus * table_processus[TAILLE_TABLE];
+struct processus * tete_proc_activable;
+struct processus * queue_proc_activable;
+struct processus * tete_proc_endormi;
+struct processus * queue_proc_endormi;
+struct processus * processus_actif;
+int32_t pid = 0;
 
 void init_processus(void) {
-    // Création du processus 0
-    struct processus processus_0;
-    processus_0.pid = 0;
-    strcpy(processus_0.nom_proc, "chef");
-    processus_0.etat = ELU;
+    // Crée le processus 0 et le rend élu
+    cree_processus(idle, "proc_0");
+    table_processus[0]->etat = ELU;
+    processus_actif = table_processus[0];
 
-    // Ajout du processus 0 à la table des processus
-    table_processus[0] = processus_0;
+    cree_processus(proc1, "proc_1");
+    cree_processus(proc2, "proc_2");
+    cree_processus(proc3, "proc_3");
+}
 
-    // Création du processus 1
-    struct processus processus_1;
-    processus_1.pid = 15;
-    strcpy(processus_1.nom_proc, "sous-chef");
-    processus_1.etat = ACTIVABLE;
-    processus_1.zone_registre[1] = (int32_t) &processus_1.pile_exec[TAILLE_PILE-1];
-    processus_1.pile_exec[TAILLE_PILE - 1] = (int32_t) proc1;
+int32_t cree_processus(void (*code)(void), char *nom) {
+    // Création du processus
+    if (pid == TAILLE_TABLE) {
+        return -1;
+    }
 
-    // Ajout du processus 1 à la table des processus
-    table_processus[1] = processus_1;
+    struct processus * processus = malloc(sizeof(struct processus));
+    processus->pid = pid;
+    strcpy(processus->nom_proc, nom);
+    processus->etat = ACTIVABLE;
+    processus->zone_registre[1] = (int32_t) &processus->pile_exec[TAILLE_PILE-1];
+    processus->pile_exec[TAILLE_PILE - 1] = (int32_t) code;
+    // Ajout du processus à la table des processus
+    table_processus[pid] = processus;
+
+    if (pid != 0) {
+        insertion_proc_activable(processus);
+    }
+
+    return pid++;
+}
+
+struct processus * extraction_proc_activable() {
+    if (tete_proc_activable == NULL) return NULL;
+    struct processus* tete = tete_proc_activable;
+    if (tete_proc_activable->suiv) {
+        tete_proc_activable = tete->suiv;
+    } else {
+        tete_proc_activable = NULL;
+        queue_proc_activable = NULL;
+    }
+    tete->etat = ELU;
+    return tete;
+}
+
+void insertion_proc_activable(struct processus * proc) {
+    if (tete_proc_activable == NULL) {
+        tete_proc_activable = proc;
+    } else {
+        queue_proc_activable->suiv = proc;
+    }
+    proc->etat = ACTIVABLE;
+    queue_proc_activable = proc;
 }
 
 void ordonnance(void) {
-    uint32_t indice_table_ancien_processus_actif = indice_table_processus_actif;
-    indice_table_processus_actif = (indice_table_processus_actif + 1) % TAILLE_TABLE;
-    table_processus[indice_table_ancien_processus_actif].etat = ACTIVABLE;
-    table_processus[indice_table_processus_actif].etat = ELU;
-    ctx_sw(table_processus[indice_table_ancien_processus_actif].zone_registre, table_processus[indice_table_processus_actif].zone_registre);
+    struct processus * old = processus_actif;
+    struct processus * new = extraction_proc_activable();
+    // Pas de processus activable --> pas de changement de contexte
+    if (new == NULL) {
+        return;
+    }
+    processus_actif = new;
+    insertion_proc_activable(old);
+    ctx_sw(old->zone_registre, new->zone_registre);
+}
+
+void dors(uint32_t nbr_secs) {
+    struct processus * processus = extraction_proc_activable();
+    processus->etat = ENDORMI;
 }
 
 int32_t mon_pid(void) {
-    return table_processus[indice_table_processus_actif].pid;
+    return processus_actif->pid;
 }
 
 char *mon_nom(void) {
-    return table_processus[indice_table_processus_actif].nom_proc;
+    return processus_actif->nom_proc;
 }
 
-void idle(void)
+void idle()
 {
     for (;;) {
-        printf("[%s] pid = %i\n", mon_nom(), mon_pid());
-        ordonnance();
+        sti();
+        hlt();
+        cli();
     }
 }
-void proc1(void) {
+void proc1(void)
+{
     for (;;) {
-        printf("[%s] pid = %i\n", mon_nom(), mon_pid());
-        ordonnance();
+        printf("[temps = %u] processus %s pid = %i\n", nbr_secondes(),
+               mon_nom(), mon_pid());
+        dors(2);
+    }
+}
+void proc2(void)
+{
+    for (;;) {
+        printf("[temps = %u] processus %s pid = %i\n", nbr_secondes(),
+               mon_nom(), mon_pid());
+        dors(3);
+    }
+}
+void proc3(void)
+{
+    for (;;) {
+        printf("[temps = %u] processus %s pid = %i\n", nbr_secondes(),
+               mon_nom(), mon_pid());
+        dors(5);
     }
 }

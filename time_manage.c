@@ -3,6 +3,7 @@
 #include "cpu.h"
 #include "console.h"
 #include "stdio.h"
+#include "processus.h"
 
 #define CLOCKFREQ 50
 #define QUARTZ 0x1234DD
@@ -41,6 +42,7 @@ void tic_PIT(void) {
     char heure_str[9];
     sprintf(heure_str, "%02u:%02u:%02u", heures, minutes, secondes);
     console_top_right(heure_str);
+    ordonnance();
 }
 
 void init_traitant_IT(int32_t num_IT, void (*traitant)(void)) {
