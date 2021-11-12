@@ -14,4 +14,6 @@ void set_freq_prog();
 
 void masque_IRQ(uint32_t num_IRQ, bool masque);
 
+extern uint32_t nbr_secondes();
+
 #endif //SEPC_OS_PROJECT_TIME_MANAGE_H

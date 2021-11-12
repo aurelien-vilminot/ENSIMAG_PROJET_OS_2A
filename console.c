@@ -1,6 +1,7 @@
 #include <string.h>
 #include "console.h"
 #include "cpu.h"
+#include "stdio.h"
 
 /*
  * Définition des constantes
@@ -112,5 +113,27 @@ void console_top_right(const char *s) {
     LIG_CURSEUR = 0;
     COL_CURSEUR = NB_COL - longueur_chaine;
     console_putbytes(s, (int) longueur_chaine);
+    place_curseur(sauvegarde_lig_curseur, sauvegarde_col_curseur);
+}
+
+void console_top_left(struct processus * liste[]) {
+    uint32_t sauvegarde_lig_curseur = LIG_CURSEUR;
+    uint32_t sauvegarde_col_curseur = COL_CURSEUR;
+
+    LIG_CURSEUR = 0;
+    COL_CURSEUR = 0;
+
+    for (uint32_t i = 0 ; liste[i] != NULL ; ++i) {
+        char process_state[10];
+        sprintf(process_state, "PID %u : %u", liste[i]->pid, liste[i]->etat);
+        size_t longueur_chaine = strlen(process_state);
+        console_putbytes(process_state, (int) longueur_chaine);
+        LIG_CURSEUR++;
+        COL_CURSEUR = 0;
+        if (sauvegarde_lig_curseur == i) {
+            sauvegarde_lig_curseur = LIG_CURSEUR;
+        }
+    }
+
     place_curseur(sauvegarde_lig_curseur, sauvegarde_col_curseur);
 }

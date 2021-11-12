@@ -12,6 +12,7 @@
 #define PORT_DONNEES 0x21
 
 uint64_t compteur = 0;
+uint32_t time = 0;
 uint32_t heures = 0;
 uint32_t minutes = 0;
 uint32_t secondes = 0;
@@ -26,6 +27,7 @@ void tic_PIT(void) {
     if (compteur == CLOCKFREQ) {
         compteur = 0;
         ++secondes;
+        time++;
         if (secondes == 60) {
             secondes = 0;
             ++minutes;
@@ -42,6 +44,7 @@ void tic_PIT(void) {
     char heure_str[9];
     sprintf(heure_str, "%02u:%02u:%02u", heures, minutes, secondes);
     console_top_right(heure_str);
+    console_top_left(table_processus);
     ordonnance();
 }
 
@@ -69,4 +72,8 @@ void masque_IRQ(uint32_t num_IRQ, bool masque) {
         valeur_masque = valeur_masque & (0xFF ^ (1 << num_IRQ));
     }
     outb(valeur_masque, PORT_DONNEES);
+}
+
+uint32_t nbr_secondes() {
+    return time;
 }

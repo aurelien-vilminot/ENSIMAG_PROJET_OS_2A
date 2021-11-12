@@ -3,33 +3,12 @@
 #include "tinyalloc.h"
 #include "string.h"
 #include "cpu.h"
+#include "time_manage.h"
 
-#define TAILLE_NOM 20
-#define NB_REGISTRES 5
-#define TAILLE_PILE 512
-#define TAILLE_TABLE 8
-
-enum etat_processus {
-    ELU,
-    ACTIVABLE,
-    ENDORMI
-};
-
-struct processus {
-    int32_t pid;
-    char nom_proc[TAILLE_NOM];
-    enum etat_processus etat;
-    int32_t zone_registre[NB_REGISTRES];
-    int32_t pile_exec[TAILLE_PILE];
-    int32_t heure_reveil;
-    struct processus * suiv;
-};
-
-struct processus * table_processus[TAILLE_TABLE];
-struct processus * tete_proc_activable;
-struct processus * queue_proc_activable;
-struct processus * tete_proc_endormi;
-struct processus * queue_proc_endormi;
+struct processus * tete_proc_activable = NULL;
+struct processus * queue_proc_activable = NULL;
+struct processus * liste_proc_endormi = NULL;
+struct processus * liste_proc_morts = NULL;
 struct processus * processus_actif;
 int32_t pid = 0;
 
@@ -40,8 +19,6 @@ void init_processus(void) {
     processus_actif = table_processus[0];
 
     cree_processus(proc1, "proc_1");
-    cree_processus(proc2, "proc_2");
-    cree_processus(proc3, "proc_3");
 }
 
 int32_t cree_processus(void (*code)(void), char *nom) {
@@ -68,18 +45,18 @@ int32_t cree_processus(void (*code)(void), char *nom) {
 
 struct processus * extraction_proc_activable() {
     if (tete_proc_activable == NULL) return NULL;
-    struct processus* tete = tete_proc_activable;
-    if (tete_proc_activable->suiv) {
-        tete_proc_activable = tete->suiv;
-    } else {
-        tete_proc_activable = NULL;
+    if (tete_proc_activable->suiv == NULL) {
         queue_proc_activable = NULL;
     }
+    struct processus* tete = tete_proc_activable;
+    tete_proc_activable = tete_proc_activable->suiv;
     tete->etat = ELU;
+    tete->suiv = NULL;
     return tete;
 }
 
 void insertion_proc_activable(struct processus * proc) {
+    proc->suiv = NULL;
     if (tete_proc_activable == NULL) {
         tete_proc_activable = proc;
     } else {
@@ -89,7 +66,44 @@ void insertion_proc_activable(struct processus * proc) {
     queue_proc_activable = proc;
 }
 
+void insertion_proc_endormis(struct processus * proc) {
+    proc->etat = ENDORMI;
+    if (liste_proc_endormi == NULL) {
+        liste_proc_endormi = proc;
+        proc->suiv = NULL;
+    } else {
+        struct processus * prec_proc = liste_proc_endormi;
+        for (struct processus * current_proc = liste_proc_endormi ; current_proc != NULL ; current_proc = current_proc->suiv) {
+            if (current_proc->heure_reveil >= proc->heure_reveil) {
+                if (prec_proc == current_proc) {
+                    proc->suiv = liste_proc_endormi;
+                    liste_proc_endormi = proc;
+                } else {
+                    prec_proc->suiv = proc;
+                    proc->suiv = current_proc;
+                }
+                return;
+            }
+            if (current_proc->suiv == NULL) {
+                // Si le processus doit être inséré à la fin de la liste
+                current_proc->suiv = proc;
+                proc->suiv = NULL;
+                return;
+            }
+            prec_proc = current_proc;
+        }
+    }
+}
+
+void insertion_proc_mort(struct processus * proc) {
+    proc->etat = MOURANT;
+    proc->suiv = liste_proc_morts;
+    liste_proc_morts = proc;
+}
+
 void ordonnance(void) {
+    reveil();
+    suppression_processus();
     struct processus * old = processus_actif;
     struct processus * new = extraction_proc_activable();
     // Pas de processus activable --> pas de changement de contexte
@@ -97,13 +111,47 @@ void ordonnance(void) {
         return;
     }
     processus_actif = new;
-    insertion_proc_activable(old);
+    if (old->etat != ENDORMI) {
+        insertion_proc_activable(old);
+    }
+
     ctx_sw(old->zone_registre, new->zone_registre);
 }
 
+void reveil() {
+    uint32_t current_time = nbr_secondes();
+    while (liste_proc_endormi != NULL) {
+        if (liste_proc_endormi->heure_reveil > current_time) {
+            return;
+        }
+        struct processus * tmp = liste_proc_endormi;
+        liste_proc_endormi = liste_proc_endormi->suiv;
+        insertion_proc_activable(tmp);
+    }
+}
+
 void dors(uint32_t nbr_secs) {
-    struct processus * processus = extraction_proc_activable();
-    processus->etat = ENDORMI;
+    processus_actif->heure_reveil = nbr_secondes() + nbr_secs;
+    insertion_proc_endormis(processus_actif);
+    ordonnance();
+}
+
+void fin_processus(void) {
+    insertion_proc_mort(processus_actif);
+    struct processus * old = processus_actif;
+    struct processus * new = extraction_proc_activable();
+    processus_actif = new;
+    ctx_sw(old->zone_registre, new->zone_registre);
+}
+
+void suppression_processus() {
+    struct processus * ptr = liste_proc_morts;
+    while(ptr != NULL) {
+        struct processus * tmp_to_suprr = ptr;
+        ptr = ptr->suiv;
+        free(tmp_to_suprr);
+        tmp_to_suprr = NULL;
+    }
 }
 
 int32_t mon_pid(void) {
@@ -122,27 +170,13 @@ void idle()
         cli();
     }
 }
+
 void proc1(void)
 {
-    for (;;) {
+    for (int32_t i = 0; i < 2; i++) {
         printf("[temps = %u] processus %s pid = %i\n", nbr_secondes(),
                mon_nom(), mon_pid());
         dors(2);
     }
-}
-void proc2(void)
-{
-    for (;;) {
-        printf("[temps = %u] processus %s pid = %i\n", nbr_secondes(),
-               mon_nom(), mon_pid());
-        dors(3);
-    }
-}
-void proc3(void)
-{
-    for (;;) {
-        printf("[temps = %u] processus %s pid = %i\n", nbr_secondes(),
-               mon_nom(), mon_pid());
-        dors(5);
-    }
+    fin_processus();
 }

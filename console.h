@@ -2,6 +2,7 @@
 #define __CONSOLE_H__
 
 #include "inttypes.h"
+#include "processus.h"
 
 /*
  * This is the function called by printf to send its output to the screen. You
@@ -14,5 +15,7 @@ void console_top_right(const char *s);
 void defilement(void);
 
 extern void traite_car(char c);
+
+void console_top_left(struct processus * liste[]);
 
 #endif
