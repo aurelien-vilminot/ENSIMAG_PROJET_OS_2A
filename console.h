@@ -16,6 +16,6 @@ void defilement(void);
 
 extern void traite_car(char c);
 
-void console_top_left(struct processus * liste[]);
+void console_top_left(struct processus * liste_processus[]);
 
 #endif

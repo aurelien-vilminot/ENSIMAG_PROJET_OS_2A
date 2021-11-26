@@ -100,7 +100,7 @@ void traite_car(char c) {
 }
 
 void defilement(void) {
-    memmove(ptr_mem(0,0), ptr_mem(1,0), 2*((NB_LIG - 1) * NB_COL));
+    memmove(ptr_mem(TAILLE_TABLE, 0), ptr_mem(TAILLE_TABLE + 1,0), 2*((NB_LIG - TAILLE_TABLE - 1) * NB_COL));
     for (uint32_t col = 0 ; col < NB_COL ; ++col) {
         ecrit_car(NB_LIG - 1, col, ' ', 0x0F);
     }
@@ -116,16 +116,37 @@ void console_top_right(const char *s) {
     place_curseur(sauvegarde_lig_curseur, sauvegarde_col_curseur);
 }
 
-void console_top_left(struct processus * liste[]) {
+void console_top_left(struct processus * liste_processus[]) {
     uint32_t sauvegarde_lig_curseur = LIG_CURSEUR;
     uint32_t sauvegarde_col_curseur = COL_CURSEUR;
 
     LIG_CURSEUR = 0;
     COL_CURSEUR = 0;
 
-    for (uint32_t i = 0 ; liste[i] != NULL ; ++i) {
-        char process_state[10];
-        sprintf(process_state, "PID %u : %u", liste[i]->pid, liste[i]->etat);
+    for (uint32_t i = 0 ; i < TAILLE_TABLE ; ++i) {
+        char process_state[12];
+        char * etat = "   ";
+        uint32_t pid = i;
+        if (liste_processus[i] != NULL) {
+            pid = liste_processus[i]->pid;
+            switch (liste_processus[i]->etat) {
+                case ELU:
+                    etat = "ELU";
+                    break;
+                case ACTIVABLE:
+                    etat = "ACT";
+                    break;
+                case ENDORMI:
+                    etat = "SLP";
+                    break;
+                case MOURANT:
+                    etat = "MOR";
+                    break;
+                default:
+                    etat = "UKW";
+            }
+        }
+        sprintf(process_state, "PID %u : %s", pid, etat);
         size_t longueur_chaine = strlen(process_state);
         console_putbytes(process_state, (int) longueur_chaine);
         LIG_CURSEUR++;

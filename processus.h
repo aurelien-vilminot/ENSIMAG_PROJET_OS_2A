@@ -25,6 +25,11 @@ struct processus {
     struct processus * suiv;
 };
 
+struct linked_list_int {
+    int32_t valeur;
+    struct linked_list_int * suiv;
+};
+
 struct processus * table_processus[TAILLE_TABLE];
 
 extern void init_processus(void);
@@ -49,6 +54,12 @@ extern void ctx_sw(int * ancien_contexte, int * nouveau_contexte);
 
 void reveil();
 
+void fin_processus(void);
+
 void suppression_processus();
+
+void insertion_pid_libre(int32_t pid_libre);
+
+int32_t extraction_pid_libre (void);
 
 #endif //SEPC_OS_PROJECT_PROCESSUS_H
